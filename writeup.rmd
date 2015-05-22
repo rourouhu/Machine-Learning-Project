@@ -1,0 +1,92 @@
+Weight Lifting Exercise Project
+========================================================
+
+**Background**
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+**Data**
+The training data for this project are available here: 
+[Nesta CMS](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+The test data are available here: 
+[Nesta CMS](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+**Load datasets into R**
+```{r}
+training <- read.csv("C:/Users/Laptop/Desktop/data scientist track/6. Machine Learning/hw/pml-training.csv", na.strings = c("NA", ""))
+validating <- read.csv("C:/Users/Laptop/Desktop/data scientist track/6. Machine Learning/hw/pml-testing.csv", na.strings = c("NA", ""))
+```
+
+**Look at the training dataset and clean the dataset**
+```{r}
+summary(training)
+##it looks like most columns have lots of missing values
+##we will exclude these columns from analysis
+##remove all columns with more than 2000 missing values(apprx 10% of sample size)
+missingColumns <- which(colSums(is.na(training))>2000)
+training <- training[,-c(missingColumns)]
+validating <- validating[,-c(missingColumns)]
+training <- training[,-1]
+validating <- validating[,-1]
+```
+
+Load packages needed for analysis
+```{r}
+library(caret)
+library(rattle)
+library(ggplot2)
+library(randomForest)
+```
+
+**Create training and test sets**
+```{r}
+set.seed(2015)
+inTrain <- createDataPartition(y=training$classe, p=0.7, list=FALSE)
+train <- training[inTrain,]
+test <- training[-inTrain,]
+dim(train)
+dim(test)
+```
+
+**Build a classification on class, using all other columns as predictors**
+```{r}
+modFit <- train(classe ~ ., method="rpart", data=train)
+print(modFit$finalModel)
+fancyRpartPlot(modFit$finalModel)
+```
+It looks like using this classification tree only has 3 possible outcomes(A,B,E), whereas the training set have 5 possible outcomes(A,B,C,D,E), hence I will next try a different model.
+
+**Use Random Forest to do clustering on class, using all other columns as predictors
+```{r}
+modFit1 <- randomForest(classe ~ .,   data=train)
+modFit1
+```
+
+**In-Sample and Out-of-Sample accuracy**
+```{r}
+IN <- predict(modFit1, train, type = "class")
+sum(IN==train$classe)/nrow(train)
+OUT <- predict(modFit1, test, type = "class")
+sum(OUT==test$classe)/nrow(test)
+```
+Looks like the Random Forest model provides much better accuracy in terms of predicting outcomes using the variables in this dataset. Hence modFit1 is our final model.
+
+
+**Predicting new values use the test set**
+```{r}
+levels(validating$user_name) <- levels(train$user_name)
+levels(validating$cvtd_timestamp) <- levels(train$cvtd_timestamp)
+levels(validating$new_window) <- levels(test$new_window)
+validating$magnet_dumbbell_z <- as.numeric(validating$magnet_dumbbell_z)
+validating$magnet_forearm_y <- as.numeric(validating$magnet_forearm_y)
+validating$magnet_forearm_z <- as.numeric(validating$magnet_forearm_z)
+predict(modFit1, newdata = validating, type="class")
+```
+
+
+
+
+
+
+
